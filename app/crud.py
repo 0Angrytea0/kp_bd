@@ -227,21 +227,8 @@ async def get_student(db: AsyncSession, student_id: int):
         }
     return None
 
-async def get_subjects(db: AsyncSession):
-    query = text("""
-        SELECT subject_id, subject_name, description
-        FROM subjects;
-    """)
-    result = await db.execute(query)
-    rows = result.fetchall()
-    subjects = []
-    for row in rows:
-        subjects.append({
-            "subject_id": row.subject_id,
-            "subject_name": row.subject_name,
-            "description": row.description
-        })
-    return subjects
+
+
 
 async def get_subject_by_id(db: AsyncSession, subject_id: int):
     query = text("""
@@ -259,6 +246,7 @@ async def get_subject_by_id(db: AsyncSession, subject_id: int):
             "description": row.description
         }
     return None
+
 
 async def create_lesson(db: AsyncSession, lesson: schemas.LessonCreate):
     query = text("""
@@ -376,8 +364,6 @@ async def create_feedback(db: AsyncSession, feedback: schemas.FeedbackCreate):
     await db.commit()
 
     if db_feedback:
-        await update_tutor_rating(db, feedback.tutor_id)
-
         return {
             "feedback_id": db_feedback.feedback_id,
             "lesson_id": db_feedback.lesson_id,
@@ -386,6 +372,7 @@ async def create_feedback(db: AsyncSession, feedback: schemas.FeedbackCreate):
             "comment": db_feedback.comment
         }
     return None
+
 
 async def get_feedbacks_by_tutor(db: AsyncSession, tutor_id: int):
     query = text("""
@@ -407,29 +394,7 @@ async def get_feedbacks_by_tutor(db: AsyncSession, tutor_id: int):
         })
     return feedbacks
 
-async def update_tutor_rating(db: AsyncSession, tutor_id: int):
-    avg_query = text("""
-        SELECT AVG(rating)::DECIMAL(3,2) as avg_rating
-        FROM feedbacks
-        WHERE tutor_id = :tutor_id;
-    """)
-    avg_res = await db.execute(avg_query, {"tutor_id": tutor_id})
-    avg_row = avg_res.fetchone()
-    average_rating = avg_row.avg_rating if avg_row and avg_row.avg_rating is not None else 0.00
 
-    update_query = text("""
-        UPDATE tutors
-        SET rating = :average_rating
-        WHERE tutor_id = :tutor_id;
-    """)
-    await db.execute(update_query, {
-        "average_rating": average_rating,
-        "tutor_id": tutor_id
-    })
-    await db.commit()
-
-
-# Получение tutor_id по user_id
 async def get_tutor_by_user_id(db: AsyncSession, user_id: int):
     query = text("""
         SELECT tutor_id, user_id, description, experience, rating
@@ -449,7 +414,6 @@ async def get_tutor_by_user_id(db: AsyncSession, user_id: int):
         }
     return None
 
-# Получение student_id по user_id
 async def get_student_by_user_id(db: AsyncSession, user_id: int):
     query = text("""
         SELECT student_id, user_id, education_level, interests

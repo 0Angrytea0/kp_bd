@@ -23,7 +23,7 @@ class UserOut(BaseModel):
     student_id: Optional[int] = None
 
     class Config:
-        orm_mode = False  # Отключаем, так как ORM не используется
+        orm_mode = False  
 
 
 class Token(BaseModel):
@@ -45,7 +45,7 @@ class TutorOut(BaseModel):
     rating: float
 
     class Config:
-        orm_mode = False  # Отключаем
+        orm_mode = False  
 
 
 class StudentCreate(BaseModel):
@@ -61,7 +61,7 @@ class StudentOut(BaseModel):
     interests: Optional[str] = None
 
     class Config:
-        orm_mode = False  # Отключаем
+        orm_mode = False  
 
 
 class StudentUpdate(BaseModel):
@@ -87,7 +87,7 @@ class LessonOut(BaseModel):
     status: str
 
     class Config:
-        orm_mode = False  # Отключаем
+        orm_mode = False  
 
 
 class FeedbackCreate(BaseModel):
@@ -106,7 +106,16 @@ class FeedbackOut(BaseModel):
     comment: Optional[str] = None
 
     class Config:
-        orm_mode = False  # Отключаем
+        orm_mode = False  
+
+class SubjectOut(BaseModel):
+    subject_id: int
+    subject_name: str
+    description: Optional[str] = None
+
+    class Config:
+        orm_mode = False
+
 
 
 class UpdateTutorInfoRequest(BaseModel):

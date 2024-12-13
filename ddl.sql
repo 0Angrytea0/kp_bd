@@ -1,4 +1,3 @@
---ddl
 -- Создание таблицы ролей
 CREATE TABLE roles (
     role_id SERIAL PRIMARY KEY,
@@ -19,7 +18,7 @@ CREATE TABLE users (
 -- Создание таблицы аутентификации
 CREATE TABLE authentication (
     auth_id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
+    user_id INTEGER UNIQUE REFERENCES users(user_id) ON DELETE CASCADE,
     password_hash TEXT NOT NULL,
     salt TEXT NOT NULL
 );
@@ -27,7 +26,7 @@ CREATE TABLE authentication (
 -- Создание таблицы репетиторов
 CREATE TABLE tutors (
     tutor_id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
+    user_id INTEGER UNIQUE REFERENCES users(user_id) ON DELETE CASCADE,
     description TEXT,
     experience INTEGER NOT NULL DEFAULT 0,
     rating DECIMAL(3, 2) DEFAULT 0.00
@@ -36,7 +35,7 @@ CREATE TABLE tutors (
 -- Создание таблицы учеников
 CREATE TABLE students (
     student_id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
+    user_id INTEGER UNIQUE REFERENCES users(user_id) ON DELETE CASCADE,
     education_level VARCHAR(50),
     interests TEXT
 );
@@ -62,12 +61,13 @@ CREATE TABLE lessons (
 -- Создание таблицы отзывов
 CREATE TABLE feedbacks (
     feedback_id SERIAL PRIMARY KEY,
-    lesson_id INTEGER REFERENCES lessons(lesson_id) ON DELETE CASCADE,
+    lesson_id INTEGER UNIQUE REFERENCES lessons(lesson_id) ON DELETE CASCADE,
     tutor_id INTEGER REFERENCES tutors(tutor_id) ON DELETE CASCADE,
-    rating INTEGER CHECK (rating >= 1 AND rating <= 5),
+    rating INTEGER CHECK (rating BETWEEN 1 AND 5),
     comment TEXT
 );
 
+-- Функция для автоматического обновления рейтинга репетитора
 CREATE OR REPLACE FUNCTION update_tutor_rating_func()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -83,6 +83,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Триггер для обновления рейтинга репетитора
 CREATE TRIGGER trg_update_tutor_rating
 AFTER INSERT OR DELETE OR UPDATE OF rating
 ON feedbacks

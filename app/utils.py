@@ -3,7 +3,7 @@ from jose import jwt, JWTError
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-SECRET_KEY = "meow"  # Замените на свой секретный ключ
+SECRET_KEY = "meow"  
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 

@@ -1,22 +1,18 @@
-# app/main.py
 
 import uvicorn
 from fastapi import FastAPI, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.security import OAuth2PasswordRequestForm
 from typing import List
-from contextlib import asynccontextmanager
 from sqlalchemy import text
 from .database import get_db
 from .utils import create_access_token, verify_password
 from .auth import get_current_user
 from . import crud, schemas
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    yield
 
-app = FastAPI(lifespan=lifespan)
+
+app = FastAPI()
 
 @app.post("/token", response_model=schemas.Token)
 async def login_for_access_token(
@@ -60,7 +56,6 @@ async def create_user(user: schemas.UserCreate, db: AsyncSession = Depends(get_d
         )
         await crud.create_student(db, student_data)
 
-    # Получаем данные для ответа
     tutor = await crud.get_tutor_by_user_id(db, new_user["user_id"])
     student = await crud.get_student_by_user_id(db, new_user["user_id"])
 
@@ -94,10 +89,6 @@ async def read_users_me(current_user: dict = Depends(get_current_user), db: Asyn
     }
 
 
-@app.post("/tutors/")
-async def create_tutor_endpoint(tutor: schemas.TutorCreate, db: AsyncSession = Depends(get_db)):
-    new_tutor = await crud.create_tutor(db, tutor)
-    return new_tutor
 
 @app.get("/tutors/", response_model=List[schemas.TutorOut])
 async def get_tutors_endpoint(db: AsyncSession = Depends(get_db)):
@@ -179,10 +170,6 @@ async def update_tutor_description(
         "experience": updated_row.experience,
     }
 
-@app.post("/students/")
-async def create_student_endpoint(student: schemas.StudentCreate, db: AsyncSession = Depends(get_db)):
-    new_student = await crud.create_student(db, student)
-    return new_student
 
 @app.get("/students/{student_id}", response_model=schemas.StudentOut)
 async def read_student(student_id: int, db: AsyncSession = Depends(get_db)):
@@ -256,7 +243,6 @@ async def get_lessons_by_student_endpoint(student_id: int, db: AsyncSession = De
 
 @app.get("/lessons/tutor/{tutor_id}", response_model=List[schemas.LessonOut])
 async def get_lessons_by_tutor_endpoint(tutor_id: int, db: AsyncSession = Depends(get_db)):
-    # Получаем данные о занятиях напрямую через CRUD
     lessons = await crud.get_lessons_by_tutor(db, tutor_id)
 
     return lessons
@@ -265,7 +251,7 @@ async def get_lessons_by_tutor_endpoint(tutor_id: int, db: AsyncSession = Depend
 @app.put("/lessons/{lesson_id}/status")
 async def update_lesson_status(
     lesson_id: int,
-    request: schemas.UpdateLessonStatusRequest,  # Используем вашу новую схему
+    request: schemas.UpdateLessonStatusRequest, 
     db: AsyncSession = Depends(get_db),
 ):
     valid_statuses = ["scheduled", "completed", "canceled"]
@@ -291,6 +277,28 @@ async def update_lesson_status(
 async def read_feedbacks_by_tutor(tutor_id: int, db: AsyncSession = Depends(get_db)):
     feedbacks = await crud.get_feedbacks_by_tutor(db, tutor_id)
     return feedbacks
+
+@app.post("/feedbacks/", response_model=schemas.FeedbackOut)
+async def create_feedback_endpoint(
+    feedback: schemas.FeedbackCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    if current_user["role_id"] != 3:  # 3 - студент
+        raise HTTPException(status_code=403, detail="Только студенты могут оставлять отзывы")
+
+    new_feedback = await crud.create_feedback(db, feedback)
+    if not new_feedback:
+        raise HTTPException(status_code=500, detail="Не удалось создать отзыв")
+
+    return new_feedback
+
+@app.get("/subjects/{subject_id}", response_model=schemas.SubjectOut)
+async def get_subject(subject_id: int, db: AsyncSession = Depends(get_db)):
+    subject = await crud.get_subject_by_id(db, subject_id)
+    if not subject:
+        raise HTTPException(status_code=404, detail="Subject not found")
+    return subject
 
 if __name__ == "__main__":
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)

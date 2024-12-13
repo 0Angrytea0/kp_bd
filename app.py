@@ -1,9 +1,5 @@
-# app.py
-
 import streamlit as st
 import requests
-import asyncio
-import httpx
 
 API_URL = "http://localhost:8000"
 
@@ -41,7 +37,6 @@ def register():
             "role_id": role_id
         }
 
-        # Регистрация пользователя в таблице users
         response = requests.post(f"{API_URL}/users/", json=user_data)
 
         if response.status_code == 200:
@@ -74,7 +69,6 @@ def show_tutors():
         st.info("Список репетиторов пуст.")
         return
 
-    # Отображение репетиторов
     for tutor in tutors:
         st.subheader(f"{tutor['user']['first_name']} {tutor['user']['last_name']}")
         st.write(f"Описание: {tutor['description']}")
@@ -102,11 +96,11 @@ def main():
                 st.subheader("Панель администратора")
                 admin_panel(headers)
             elif role_id == 2:
-                # Это преподаватель
+                # Преподаватель
                 st.session_state["tutor_id"] = user.get("tutor_id")
-                tutor_panel(headers, user)
+                tutor_panel(headers)
             elif role_id == 3:
-                # Это студент
+                # Студент
                 st.session_state["student_id"] = user.get("student_id")
                 student_panel(headers, user)
             else:
@@ -120,24 +114,22 @@ def admin_panel(headers):
     st.subheader("Функции администратора")
     st.write("Функции пока не реализованы.")
 
-def tutor_panel(headers, user):
-    # Получение tutor_id из сессии
+def tutor_panel(headers):
     tutor_id = st.session_state.get("tutor_id")
     if not tutor_id:
         st.error("Ошибка: Не удалось определить ID репетитора.")
         return
 
-    # Боковое меню
+
     action = st.sidebar.radio("Действия", ["Моё расписание", "Добавить занятие", "Редактировать описание"])
 
-    # Отображение расписания
+
     if action == "Моё расписание":
         st.subheader("Расписание")
         token = headers["Authorization"].split(" ")[1]
         schedule = fetch_schedule(tutor_id, token)
         display_schedule(schedule, token)
 
-    # Добавление занятия
     elif action == "Добавить занятие":
         st.subheader("Добавить новое занятие")
 
@@ -164,8 +156,6 @@ def tutor_panel(headers, user):
     elif action == "Редактировать описание":
         st.subheader("Изменить описание и опыт работы")
 
-
-        # Получить текущие данные
         response = requests.get(f"{API_URL}/tutors/{tutor_id}", headers=headers)
         if response.status_code == 200:
             tutor_info = response.json()
@@ -175,7 +165,6 @@ def tutor_panel(headers, user):
             st.error("Не удалось загрузить информацию о репетиторе.")
             return
 
-        # Поля для изменения
         new_description = st.text_area("Описание", value=current_description)
         new_experience = st.number_input("Опыт работы (в годах)", value=current_experience, step=1, min_value=0)
 
@@ -204,7 +193,7 @@ def fetch_schedule(tutor_id, token):
 
 def update_lesson_status(lesson_id, new_status, token):
     headers = {"Authorization": f"Bearer {token}"}
-    data = {"status": new_status}  # Обратите внимание, формат должен соответствовать схеме
+    data = {"status": new_status}  
     response = requests.put(f"{API_URL}/lessons/{lesson_id}/status", json=data, headers=headers)
     if response.status_code == 200:
         st.success("Статус успешно обновлен!")
@@ -218,30 +207,30 @@ def display_schedule(schedule, token):
         st.info("Расписание пока пусто.")
         return
 
-    # Словарь названий предметов
-    subject_names = {
-        1: "Mathematics",
-        2: "Physics",
-        3: "Chemistry"
-    }
-
     for lesson in schedule:
         student_details = fetch_student_details(lesson['student_id'], token)
         if student_details:
             student_name = f"{student_details['user']['first_name']} {student_details['user']['last_name']}"
-            education_level =  student_details.get("education_level")
+            education_level = student_details.get("education_level")
         else:
             student_name = "Неизвестный ученик"
             education_level = "Неизвестно"
 
-        # Получаем subject_id и находим название предмета через словарь
-        subject_id = lesson['subject_id']
-        subject_name = subject_names.get(subject_id, "Неизвестный предмет")
+        response = requests.get(
+            f"{API_URL}/subjects/{lesson['subject_id']}",
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        if response.status_code == 200:
+            subject_details = response.json()
+            subject_name = subject_details.get("subject_name", "Неизвестный предмет")
+        else:
+            subject_name = "Неизвестный предмет"
 
         st.write(f"Дата: {lesson['lesson_date']}, Время: {lesson['lesson_time']}")
         st.write(f"Ученик: {student_name} (Уровень образования: {education_level})")
         st.write(f"Предмет: {subject_name}")
         st.write(f"Статус: {lesson['status']}")
+
 
         new_status = st.selectbox(
             "Изменить статус занятия",
@@ -266,7 +255,6 @@ def fetch_student_details(student_id, token):
 
 def student_panel(headers, user):
 
-    # Получаем student_id из сессии
     student_id = st.session_state.get("student_id")
     if not student_id:
         st.error("Ошибка: не удалось определить ID ученика.")
@@ -274,7 +262,6 @@ def student_panel(headers, user):
 
     action = st.sidebar.radio("Действия", ["Мой профиль", "Моё расписание", "Поиск репетиторов"])
 
-    # Действие: Поиск репетиторов
     if action == "Поиск репетиторов":
         st.subheader("Поиск репетиторов")
         st.info(f"Ваш ID: {student_id}")
@@ -282,14 +269,12 @@ def student_panel(headers, user):
         if response.status_code == 200:
             tutors = response.json()
             for tutor in tutors:
-                # Информация о репетиторе
                 st.write(f"Репетитор: {tutor['user']['first_name']} {tutor['user']['last_name']} (Рейтинг: {tutor['rating']})")
                 st.write(f"Описание: {tutor['description']}")
                 st.write(f"Email: {tutor['user']['email']}")
                 st.write(f"Опыт: {tutor['experience']} лет")
 
                 # Кнопка для просмотра отзывов
-                
                 view_feedbacks(tutor['tutor_id'], headers["Authorization"].split(" ")[1])
 
                 # Форма для оставления отзыва
@@ -299,7 +284,6 @@ def student_panel(headers, user):
         else:
             st.error("Не удалось загрузить список репетиторов")
 
-    # Действие: Моё расписание
     elif action == "Моё расписание":
         st.subheader("Расписание")
         token = headers["Authorization"].split(" ")[1]
@@ -317,7 +301,6 @@ def student_panel(headers, user):
             st.write(f"Email: {user['email']}")
             st.write(f"Телефон: {user['phone']}")
 
-            # Добавить текущий уровень образования
             current_level = student_data['education_level']
             new_level = st.selectbox(
                 "Уровень образования",
@@ -355,14 +338,6 @@ def display_student_schedule(schedule):
         st.info("Расписание пока пусто.")
         return
 
-    # Словарь для предметов по subject_id
-    subject_names = {
-        1: "Mathematics",
-        2: "Physics",
-        3: "Chemistry"
-    }
-
-    # Получаем токен из сессии
     token = st.session_state.get("access_token")
     if not token:
         st.error("Отсутствует токен аутентификации.")
@@ -371,12 +346,18 @@ def display_student_schedule(schedule):
 
     for lesson in schedule:
         tutor_id = lesson["tutor_id"]
-        subject_id = lesson["subject_id"]
-        
-        # Получаем имя предмета из словаря
-        subject_name = subject_names.get(subject_id, "Неизвестный предмет")
 
-        # Делаем запрос к /tutors/{tutor_id}, чтобы получить данные о преподавателе
+
+        response = requests.get(
+            f"{API_URL}/subjects/{lesson['subject_id']}",
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        if response.status_code == 200:
+            subject_details = response.json()
+            subject_name = subject_details.get("subject_name", "Неизвестный предмет")
+        else:
+            subject_name = "Неизвестный предмет"
+
         tutor_response = requests.get(f"{API_URL}/tutors/{tutor_id}", headers=headers)
         if tutor_response.status_code == 200:
             tutor_data = tutor_response.json()
@@ -389,7 +370,7 @@ def display_student_schedule(schedule):
         time = lesson["lesson_time"]
         status = lesson["status"]
 
-        # Выводим информацию
+
         st.write(f"Дата: {date}, Время: {time}")
         st.write(f"Преподаватель: {tutor_name}")
         st.write(f"Предмет: {subject_name}")
@@ -424,7 +405,7 @@ def submit_feedback(tutor_id, token, student_id):
     if lessons_response.status_code == 200:
         lessons = lessons_response.json()
         tutor_lessons = [
-            lesson for lesson in lessons if lesson["tutor"]["tutor_id"] == tutor_id
+            lesson for lesson in lessons if lesson["tutor_id"] == tutor_id
         ]
 
         if not tutor_lessons:
@@ -434,15 +415,23 @@ def submit_feedback(tutor_id, token, student_id):
         st.error("Ошибка при получении уроков. Попробуйте позже.")
         return
 
-    # Выбор урока
-    lesson_choices = {
-        f"{lesson['lesson_date']} {lesson['lesson_time']} - {lesson['subject']['subject_name']}":
-        lesson["lesson_id"]
-        for lesson in tutor_lessons
-    }
+    lesson_choices = {}
 
+    for lesson in tutor_lessons:
+        response = requests.get(
+            f"{API_URL}/subjects/{lesson['subject_id']}",
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        if response.status_code == 200:
+            subject_details = response.json()
+            subject_name = subject_details.get("subject_name", "Неизвестный предмет")
+        else:
+            subject_name = "Неизвестный предмет"
+        lesson_choices[f"{lesson['lesson_date']} {lesson['lesson_time']} - {subject_name}"] = lesson["lesson_id"]
+
+    # Генерация формы для оставления отзыва
     with st.form(key=f"feedback_form_{tutor_id}"):
-        # Cписок уроков
+        
         selected_lesson = st.selectbox(
             "Выберите урок для отзыва", options=list(lesson_choices.keys())
         )
@@ -463,10 +452,10 @@ def submit_feedback(tutor_id, token, student_id):
             response = requests.post(f"{API_URL}/feedbacks/", headers=headers, json=feedback_data)
             if response.status_code == 200:
                 st.success("Отзыв успешно добавлен!")
-                # Скрываем форму после отправки
                 st.session_state[f"show_feedback_form_{tutor_id}"] = False
             else:
                 st.error(f"Ошибка при добавлении отзыва: {response.text}")
+
 
 
 def view_feedbacks(tutor_id, token):
@@ -474,7 +463,6 @@ def view_feedbacks(tutor_id, token):
     if f"show_reviews_{tutor_id}" not in st.session_state:
         st.session_state[f"show_reviews_{tutor_id}"] = False
 
-    # Кнопка для открытия/закрытия раздела с отзывами
     if st.button("Посмотреть отзывы", key=f"toggle_reviews_{tutor_id}"):
         st.session_state[f"show_reviews_{tutor_id}"] = not st.session_state[f"show_reviews_{tutor_id}"]
 
@@ -482,7 +470,6 @@ def view_feedbacks(tutor_id, token):
     if st.session_state[f"show_reviews_{tutor_id}"]:
         st.subheader(f"Отзывы о преподавателе")
 
-        # Запрос отзывов для преподавателя
         headers = {"Authorization": f"Bearer {token}"}
         response = requests.get(f"{API_URL}/feedbacks/tutor/{tutor_id}", headers=headers)
 
